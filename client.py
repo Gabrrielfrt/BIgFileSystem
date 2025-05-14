@@ -69,11 +69,12 @@ class BigFileSclient:
 
     def operacoes(self):
         try:
-            print("\n--- Big File System 1.5 ---")
+            print("\nNetwork File System")
             print("Comandos disponíveis:")
             print("  LS                        - Listar arquivos no servidor")
             print("  CP <origem> <destino>     - Copiar arquivo entre cliente e servidor")
-            print("                              Use 'remote:caminho' para caminhos do servidor")
+            print("                              Use 'remote:/caminho' para caminhos do servidor")
+            print("  RM  remote:/caminho        - Remova um arquivo no diretorio remoto")
             print("  HELP                      - Mostrar este menu")
             print("  EXIT                      - Sair do programa")
             print()
@@ -100,13 +101,18 @@ class BigFileSclient:
                 print("Comandos disponíveis:")
                 print("  LS                        - Listar arquivos no servidor")
                 print("  CP <origem> <destino>     - Copiar arquivo entre cliente e servidor")
-                print("                              Use 'remote:caminho' para caminhos do servidor")
+                print("                              Use 'remote:/caminho' para caminhos do servidor")
+                print("  RM  remote:/caminho        - Remova um arquivo no diretorio remoto")
                 print("  HELP                      - Mostrar este menu")
                 print("  EXIT                      - Sair do programa")
 
-            elif comando == "PWD":
-                resultado = self.sistema.pwd()
-                print(resultado)
+            elif comando == "RM":
+                if len(partes) != 2:
+                    print("Uso correto: RM remote:/caminho ")
+                else:
+                    _, caminho = partes
+                    self.rm(origem, caminho)                
+
 
             elif comando == "EXIT":
                 print("Encerrando cliente...")
