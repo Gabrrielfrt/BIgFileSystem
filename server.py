@@ -63,7 +63,21 @@ class sistemaArquivos:
 
         except Exception as e:
             return {"erro": str(e)}
-
+    
+    def rm(self, path):
+        try:
+            full_path = os.path.join(directory_path, path)
+            if os.path.isfile(full_path):
+                os.remove(full_path)
+                return f"Arquivo {path} removido com sucesso."
+            elif os.path.isdir(full_path):
+                os.rmdir(full_path)
+                return f"Diretório {path} removido com sucesso."
+            else:
+                return f"Erro: {path} não existe."
+        except Exception as e:
+            return f"Erro ao remover {path}: {str(e)}"
+        
     def pwd(self):
         return directory_path
     
