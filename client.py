@@ -1,8 +1,6 @@
-import Pyro4
+import Pyro5.api
 import os
-
-Pyro4.config.SERIALIZER = 'pickle'
-Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+import base64
 
 
 class BigFileSclient:
@@ -10,50 +8,72 @@ class BigFileSclient:
         self.sistema = None
 
     def conectar(self, uri):
-            try:
-                self.sistema = Pyro4.Proxy(uri)
-                print("Conectado ao servidor com sucesso!")
-                return True
-            except Exception as e:
-                print(f"Falha ao conectar no servidor: {str(e)}")
-                return False
+        try:
+            self.sistema = Pyro5.api.Proxy(uri)
+            print("Conectado ao servidor com sucesso!")
+            return True
+        except Exception as e:
+            print(f"Falha ao conectar no servidor: {str(e)}")
+            return False
 
     def copy(self, origem, destino):
         origem = origem.strip()
         destino = destino.strip()
-
+    
         # Upload (cliente → servidor)
-        if not origem.startswith("/FSroot") and destino.startswith("/FSroot"):
+        if not origem.startswith("remote:") and destino.startswith("remote:"):
             try:
+                if not os.path.exists(origem):
+                    print(f"Erro: Arquivo local '{origem}' não encontrado")
+                    return
+    
                 with open(origem, "rb") as f:
                     dados = f.read()
-                server_path = destino[len("/FSroot"):].lstrip('/')
-                resultado = self.sistema.copy_to_server(server_path, dados)
+                    if len(dados) == 0:
+                        print("Aviso: Arquivo de origem está vazio")
+    
+                dados_codificados = base64.b64encode(dados).decode('utf-8')
+                server_path = destino[len("remote:"):].lstrip('/')
+                print(f"Enviando '{origem}' para servidor (remote:{server_path})...")
+    
+                resultado = self.sistema.copy_to_server(server_path, dados_codificados)
                 print(resultado)
+    
             except Exception as e:
-                print(f"Erro ao enviar arquivo: {e}")
-
+                print(f"Erro no upload: {str(e)}")
+    
         # Download (servidor → cliente)
-        elif origem.startswith("/FSroot") and not destino.startswith("/FSroot"):
+        elif origem.startswith("remote:") and not destino.startswith("remote:"):
             try:
-                nome_origem = origem[len("/FSroot"):].lstrip('/')
-                dados = self.sistema.copy_from_server(nome_origem)
+                server_path = origem[len("remote:"):].lstrip('/')
+                print(f"Solicitando '{server_path}' do servidor...")
+    
+                resposta = self.sistema.copy_to_client(server_path)
+                if isinstance(resposta, dict) and "erro" in resposta:
+                    print(f"Erro no servidor: {resposta['erro']}")
+                    return
+    
+                dados_codificados = resposta["dados"]
+                dados = base64.b64decode(dados_codificados)
+    
                 with open(destino, "wb") as f:
                     f.write(dados)
-                print(f"Arquivo salvo em {destino}")
+    
+                print(f"Arquivo salvo localmente em '{destino}' ({len(dados)} bytes)")
+    
             except Exception as e:
-                print(f"Erro ao baixar arquivo: {e}")
-
+                print(f"Erro no download: {str(e)}")
+    
         else:
-            print("Erro: Um dos caminhos deve estar dentro de /FSroot (servidor), e o outro deve ser local.")
-
+            print("Operação de cópia não suportada entre esses caminhos.")
 
     def operacoes(self):
         try:
+            print("\n--- Big File System 1.5 ---")
             print("Comandos disponíveis:")
             print("  LS                        - Listar arquivos no servidor")
             print("  CP <origem> <destino>     - Copiar arquivo entre cliente e servidor")
-            print("                              Use /FSroot/... para caminhos do servidor")
+            print("                              Use 'remote:caminho' para caminhos do servidor")
             print("  HELP                      - Mostrar este menu")
             print("  EXIT                      - Sair do programa")
             print()
@@ -80,7 +100,7 @@ class BigFileSclient:
                 print("Comandos disponíveis:")
                 print("  LS                        - Listar arquivos no servidor")
                 print("  CP <origem> <destino>     - Copiar arquivo entre cliente e servidor")
-                print("                              Use /FSroot/... para caminhos do servidor")
+                print("                              Use 'remote:caminho' para caminhos do servidor")
                 print("  HELP                      - Mostrar este menu")
                 print("  EXIT                      - Sair do programa")
 
@@ -98,21 +118,16 @@ class BigFileSclient:
         except Exception as e:
             print(f"Erro ao executar operação: {str(e)}")
 
-        
+
 def main():
     cliente = BigFileSclient()
-    
+
     uri = input("Digite a URI do servidor (ex: PYRO:obj_123@localhost:9090): ")
     if not cliente.conectar(uri):
         return
-    
+
     while True:
-        print("\n--- Big File System 1.5 ---")
         cliente.operacoes()
-        
-        continuar = input("\nDeseja fazer outra operação? (s/n): ").lower()
-        if continuar != 's':
-            break
 
 
 if __name__ == "__main__":
